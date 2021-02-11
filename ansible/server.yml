@@ -1,0 +1,6 @@
+---
+- become: true
+  hosts: ubuntu
+  roles:
+    - setup_xrdp
+    - setup_desktop-rootlogin

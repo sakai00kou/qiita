@@ -1,0 +1,8 @@
+---
+# handlers file for setup_xrdp
+- name: restart_xrdp
+  systemd:
+    name: xrdp
+    state: restarted
+    enabled: yes
+

@@ -1,0 +1,62 @@
+---
+# tasks file for setup_xrdp
+- name: xrdpインストール
+  apt:
+    name: xrdp
+    state: present
+    update_cache: yes
+
+- name: sessman.ini startwm置換
+  replace:
+    path: /etc/xrdp/sesman.ini
+    regexp: startwm
+    replace: startubuntu
+  notify:
+    - restart_xrdp
+
+- name: sessman.ini FuseMountName置換
+  replace:
+    path: /etc/xrdp/sesman.ini
+    regexp: FuseMountName=thinclient_drives
+    replace: FuseMountName=shared-drives
+  notify:
+    - restart_xrdp
+
+- name: Xwrapper.config置換
+  replace:
+    path: /etc/X11/Xwrapper.config
+    regexp: allowed_users=console
+    replace: allowed_users=anybody
+  notify:
+    - restart_xrdp
+
+- name: startubuntu.shコピー
+  copy:
+    src: startubuntu.sh
+    dest: /etc/xrdp/startubuntu.sh
+    owner: root
+    group: root
+    mode: 0755
+  notify:
+    - restart_xrdp
+
+- name: 45-allow-colord.pkla配置
+  copy:
+    src: 45-allow-colord.pkla
+    dest: /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - restart_xrdp
+
+- name: 46-allow-update-repo.pkla配置
+  copy:
+    src: 46-allow-update-repo.pkla
+    dest: /etc/polkit-1/localauthority/50-local.d/46-allow-update-repo.pkla
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - restart_xrdp
+
