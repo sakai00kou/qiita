@@ -1,0 +1,90 @@
+---
+# tasks file for setup_bigip-ha-group
+- name: BIG-IP Device Connectivity設定
+  bigip_device_connectivity:
+    failover_multicast: "no"
+    cluster_mirroring: "within-cluster"
+    config_sync_ip: "{{ item.config_sync_ip }}"
+    unicast_failover:
+      - address: "{{ item.unicast_failover }}"
+    mirror_primary_address: "{{ item.mirror_primary_address }}"
+    mirror_secondary_address: "{{ item.mirror_secondary_address }}"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  loop: "{{ bigip_device_connectivity }}"
+
+- name: BIG-IP Trust Domain設定
+  bigip_device_trust:
+    peer_server: "{{ item.peer_server }}"
+    peer_hostname: "{{ item.peer_hostname }}"
+    peer_user: "{{ bigip_user }}"
+    peer_password: "{{ bigip_password }}"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  when: ha_flag == "master"
+  loop: "{{ bigip_device_trust }}"
+
+- name: BIG-IP Device Group設定
+  bigip_device_group:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    full_sync: "{{ item.full_sync }}"
+    network_failover: "yes"
+    save_on_auto_sync: "{{ item.save_on_auto_sync }}"
+    type: "sync-failover"
+    provider: "{{ bigip_provider }}"
+    state: "present"
+  delegate_to: "{{ bigip_delegate_to }}"
+  when: ha_flag == "master"
+  loop: "{{ bigip_device_group }}"
+
+- name: BIG-IP Device Group Member設定
+  bigip_device_group_member:
+    name: "{{ item.name }}"
+    device_group: "{{ item.device_group }}"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  when: ha_flag == "master"
+  loop: "{{ bigip_device_group_member }}"
+
+- name: BIG-IP 初期同期
+  bigip_configsync_action:
+    device_group: "{{ item.device_group }}"
+    sync_device_to_group: "yes"
+    overwrite_config: "yes"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  when: ha_flag == "master"
+  loop: "{{ bigip_configsync_action }}"
+
+- name: BIG-IP HA group設定(pools)
+  bigip_device_ha_group:
+    name: "{{ item.0.name }}"
+    active_bonus: "{{ item.0.active_bonus }}"
+    pools: "{{ item.1.pools }}"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  with_nested:
+    - "{{ bigip_device_ha_group }}"
+    - "{{ bigip_ha_pool }}"
+
+- name: BIG-IP HA group設定(trunks)
+  bigip_device_ha_group:
+    name: "{{ item.0.name }}"
+    active_bonus: "{{ item.0.active_bonus }}"
+    trunks: "{{ item.1.trunks }}"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  with_nested:
+    - "{{ bigip_device_ha_group }}"
+    - "{{ bigip_ha_trunk }}"
+
+- name: BIG-IP Traffic-Group設定
+  bigip_device_traffic_group:
+    name: "{{ item.name }}"
+    auto_failback: "no"
+    ha_group: "{{ item.ha_group }}"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  loop: "{{ bigip_device_traffic_group }}"
+

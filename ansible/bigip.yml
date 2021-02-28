@@ -1,0 +1,12 @@
+---
+- hosts: bigip
+  gather_facts: no
+  roles:
+    - setup_bigip-license
+    - setup_bigip-trunk
+    - setup_bigip-initconf
+    - setup_bigip-node
+    - setup_bigip-pool
+    - setup_bigip-virtual-server
+    - setup_bigip-float-ip
+    - setup_bigip-ha-group

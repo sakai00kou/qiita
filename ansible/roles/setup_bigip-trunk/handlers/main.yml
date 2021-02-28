@@ -1,0 +1,7 @@
+---
+# handlers file for setup_bigip-trunk
+- name: save_config
+  bigip_config:
+    save: "yes"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"

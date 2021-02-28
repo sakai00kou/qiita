@@ -1,0 +1,31 @@
+---
+# tasks file for setup_bigip-pool
+- name: BIG-IP 負荷分散プールの作成
+  bigip_pool:
+    partition: "Common"
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    monitors: "{{ item.monitors }}"
+    lb_method: "{{ item.lb_method }}"
+    priority_group_activation: "{{ item.priority_group_activation }}"
+    state: "present"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  when: ha_flag == "master"
+  notify: save_config
+  loop: "{{ bigip_pool }}"
+
+- name: BIG-IP 負荷分散プールメンバの作成
+  bigip_pool_member:
+    partition: "Common"
+    host: "{{ item.host }}"
+    name: "{{ item.name }}"
+    pool: "{{ item.pool }}"
+    port: "{{ item.port }}"
+    state: "present"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  when: ha_flag == "master"
+  notify: save_config
+  loop: "{{ bigip_pool_member }}"
+

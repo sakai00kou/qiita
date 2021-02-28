@@ -1,0 +1,17 @@
+---
+# tasks file for setup_bigip-node
+- name: BIG-IP 負荷分散ノードの作成
+  bigip_node:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    host: "{{ item.host }}"
+    monitors: "{{ item.monitors }}"
+    ratio: "{{ item.ratio }}"
+    connection_limit: "{{ item.connection_limit }}"
+    rate_limit: "{{ item.rate_limit }}"
+    state: "present"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  when: ha_flag == "master"
+  notify: save_config
+  loop: "{{ bigip_node }}"

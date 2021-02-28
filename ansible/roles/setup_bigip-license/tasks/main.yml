@@ -1,0 +1,15 @@
+---
+# tasks file for setup_bigip-license
+- name: BIG-IPライセンスアクティベート
+  bigip_device_license:
+    license_key: "{{ bigip_license }}"
+    accept_eula: "yes"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+
+- name: BIG-IP LTMのnominalレベルプロビジョン
+  bigip_provision:
+    module: ltm
+    level: nominal
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"

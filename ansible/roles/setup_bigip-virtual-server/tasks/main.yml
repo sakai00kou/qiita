@@ -1,0 +1,19 @@
+---
+# tasks file for setup_bigip-virtual-server
+- name: BIG-IP Virtual Serverの作成
+  bigip_virtual_server:
+    partition: "Common"
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    destination: "{{ item.destination }}"
+    port: "{{ item.port }}"
+    pool: "{{ item.pool }}"
+    enabled_vlans: "{{ item.enabled_vlans }}"
+    snat: "{{ item.snat }}"
+    profiles: "{{ item.profiles }}"
+    state: "present"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  when: ha_flag == "master"
+  notify: save_config
+  loop: "{{ bigip_virtual_server }}"

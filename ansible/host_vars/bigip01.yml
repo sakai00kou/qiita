@@ -1,0 +1,15 @@
+---
+bigip_license: XXXXX-XXXXX-XXXXX-XXXXX-XXXXXXX
+bigip_server: [BIG-IPのIPアドレス]
+bigip_fqdn: bigip01.example.com
+
+bigip_selfip:
+  - { name: "10.1.0.1", address: "10.1.0.1", netmask: "255.255.255.0", vlan: "external", allow_service: "none" }
+  - { name: "10.2.0.1", address: "10.2.0.1", netmask: "255.255.255.0", vlan: "internal", allow_service: "none" }
+  - { name: "10.3.0.1", address: "10.3.0.1", netmask: "255.255.255.252", vlan: "ha", allow_service: "default" }
+
+ha_flag: master
+
+# 冗長化設定(device connectivity)
+bigip_device_connectivity:
+  - { config_sync_ip: "10.3.0.1", unicast_failover: "10.3.0.1", mirror_primary_address: "10.3.0.1", mirror_secondary_address: "" }

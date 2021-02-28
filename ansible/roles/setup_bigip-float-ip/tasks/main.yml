@@ -1,0 +1,16 @@
+---
+# tasks file for setup_bigip-float-ip
+- name: BIG-IP Self IP(Floating IP)の作成
+  bigip_selfip:
+    name: "{{ item.name }}"
+    address: "{{ item.address }}"
+    netmask: "{{ item.netmask }}"
+    vlan: "{{ item.vlan }}"
+    allow_service: "{{ item.allow_service }}"
+    traffic_group: "{{ item.traffic_group }}"
+    state: "present"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  when: ha_flag == "master"
+  notify: save_config
+  loop: "{{ bigip_floatip }}"

@@ -1,0 +1,16 @@
+---
+# tasks file for setup_bigip-trunk
+- name: BIG-IP trunkの作成
+  bigip_trunk:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    interfaces: "{{ item.interfaces }}"
+    link_selection_policy: "{{ item.link_selection_policy }}"
+    frame_distribution_hash: "{{ item.frame_distribution_hash }}"
+#    lacp_enabled: "{{ item.lacp_enabled }}"
+#    lacp_mode: "{{ item.lacp_mode }}"
+#    lacp_timeout: "{{ item.lacp_timeout }}"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  notify: save_config
+  loop: "{{ bigip_trunk }}"

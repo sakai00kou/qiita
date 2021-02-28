@@ -1,0 +1,73 @@
+---
+# tasks file for setup_bigip-initconf
+- name: BIG-IP ManagementポートのDHCP無効化とGUIセットアップ無効化
+  bigip_sys_global:
+    gui_setup: "no"
+    mgmt_dhcp: "no"
+    state: "present"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  notify: save_config
+
+- name: BIG-IP Managementポートのルーティング設定
+  bigip_management_route:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    gateway: "{{ item.gateway }}"
+    network: "{{ item.network }}"
+    state: "present"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  notify: save_config
+  loop: "{{ bigip_management_route }}"
+
+- name: BIG-IP ホスト名の設定
+  bigip_hostname:
+    hostname: "{{ bigip_fqdn }}"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  notify: save_config
+
+- name: BIG-IP インタフェースVLANの作成
+  bigip_vlan:
+    untagged_interface: "{{ item.untagged_interface }}"
+    name: "{{ item.name }}"
+    tag: "{{ item.tag }}"
+    state: "present"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  notify: save_config
+  loop: "{{ bigip_interface }}"
+
+- name: BIG-IP Self IPの作成
+  bigip_selfip:
+    name: "{{ item.name }}"
+    address: "{{ item.address }}"
+    netmask: "{{ item.netmask }}"
+    vlan: "{{ item.vlan }}"
+    allow_service: "{{ item.allow_service }}"
+    state: "present"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  notify: save_config
+  loop: "{{ bigip_selfip }}"
+
+- name: BIG-IP DNSの設定
+  bigip_device_dns:
+    name_servers: "{{ item.name_servers }}"
+    state: "present"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  notify: save_config
+  loop: "{{ bigip_dns }}"
+
+- name: BIG-IP NTPの設定
+  bigip_device_ntp:
+    ntp_servers: "{{ item.ntp_servers }}"
+    timezone: "{{ item.timezone }}"
+    state: "present"
+    provider: "{{ bigip_provider }}"
+  delegate_to: "{{ bigip_delegate_to }}"
+  notify: save_config
+  loop: "{{ bigip_ntp }}"
+

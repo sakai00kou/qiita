@@ -1,2 +1,6 @@
 [ubuntu]
 ubuntu01 ansible_host=192.168.56.130
+
+[bigip]
+bigip01
+bigip02
