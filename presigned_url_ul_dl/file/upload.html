@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+
+  <title>File Transfer - File Upload</title>
+
+  <link href="./style.css" rel="stylesheet" media="all">
+  <script src="./upload.js" type="module"></script>
+</head>
+<body>
+  <h1>File Upload</h1>
+
+  <h2 id="bucket">Bucket : </h1>
+  <h2 id="folder">Folder : </h2>
+
+  <form id="upload-form">
+  <div class="flatbox-left">
+    <input type="file" id="avatar" multiple>
+    <label for="avatar" class="sub-button">Choose file</label>
+  </div>
+  <div id="chosen-file"><p>No file chosen.</p></div>
+  <div class="flatbox-right">
+    <div><input type="checkbox" id="zip"><label for="zip">Create ZIP</label></div>
+    <div><button id="submit" disabled>Upload</button></div>
+  </div>
+  </form>
+
+  <hr>
+  <div class="flatbox-left">
+    <div><button id="back" class="sub-button"><i class="arrow"></i>Back</button></div>
+    <div><input type="checkbox" id="sign-out"><label for="sign-out">Sign-out</label></div>
+  </div>
+
+  <div id="spinner"></div>
+
+</body>
+</html>

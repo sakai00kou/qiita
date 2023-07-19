@@ -1,0 +1,13 @@
+/**
+ * Environment variables
+ * 環境変数
+ */
+// for Amazon Cognito configuration
+export const USERPOOL_DOMAIN = "${userpool_domain}";
+export const USERPOOL_REGION = "${userpool_region}";
+export const USERPOOL_CLIENT_ID = "${userpool_client_id}";
+export const USERPOOL_RESPONSE_TYPE = "code";
+export const USERPOOL_SCOPE = "openid";
+
+// for Amazon API Gateway configuration
+export const EXECUTE_API_STAGE = "/${execute_api_stage}";
