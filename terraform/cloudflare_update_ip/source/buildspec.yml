@@ -1,0 +1,157 @@
+version: 0.2
+
+env:
+  variables:
+    # AWS_DEFAULT_REGION      : デフォルトリージョン
+    # OLD_LIST_FILE_IPv4_FILE : 古いIPv4アドレスリストファイル名
+    # NEW_LIST_FILE_IPv4_FILE : 新しいIPv4アドレスリストファイル名
+    # DELETE_LIST_IPv4_FILE   : 削除IPv4アドレスリストファイル名
+    # ADD_LIST_IPv4_FILE      : 追加IPv4アドレスリストファイル名
+    # OLD_LIST_FILE_IPv6_FILE : 古いIPv6アドレスリストファイル名
+    # NEW_LIST_FILE_IPv6_FILE : 新しいIPv6アドレスリストファイル名
+    # DELETE_LIST_IPv6_FILE   : 削除IPv6アドレスリストファイル名
+    # ADD_LIST_IPv6_FILE      : 追加IPv6アドレスリストファイル名
+    # PREFIX_LIST_ID_IPV4     : IPv4マネージドプレフィックスリストID
+    # PREFIX_LIST_ID_IPV6     : IPv6マネージドプレフィックスリストID
+    AWS_DEFAULT_REGION: "ap-northeast-1"
+    OLD_LIST_IPV4_FILE: "list_ipv4_old"
+    NEW_LIST_IPV4_FILE: "list_ipv4_new"
+    DELETE_LIST_IPV4_FILE: "delete_ipv4_list"
+    ADD_LIST_IPV4_FILE: "add_ipv4_list"
+    OLD_LIST_IPV6_FILE: "list_ipv6_old"
+    NEW_LIST_IPV6_FILE: "list_ipv6_new"
+    DELETE_LIST_IPV6_FILE: "delete_ipv6_list"
+    ADD_LIST_IPV6_FILE: "add_ipv6_list"
+    # PREFIX_LIST_IDは外部変数で指定するためコメントアウト
+    # PREFIX_LIST_ID_IPV4: "pl-xxxxxxxxxxxxxxxxx"
+    # PREFIX_LIST_ID_IPV6: "pl-yyyyyyyyyyyyyyyyy"
+
+phases:
+  pre_build:
+    on-failure: ABORT
+    commands:
+      # IPv4マネージドプレフィックスリストのエントリを取得
+      # buildspec.yml内ではステップをまたぐと終了コードで判定できないため、エラーチェック用変数で判定
+      - |
+        aws ec2 get-managed-prefix-list-entries --prefix-list-id ${PREFIX_LIST_ID_IPV4} | jq -r '.Entries[].Cidr' | sort > ${OLD_LIST_IPV4_FILE}
+        ERRCHK_IPV4=${PIPESTATUS[0]}
+      # エラー処理
+      - |
+        if [ ${ERRCHK_IPV4} -ne 0 ]; then
+          exit 1
+        fi
+      # IPv6マネージドプレフィックスリストのエントリを取得
+      # buildspec.yml内ではステップをまたぐと終了コードで判定できないため、エラーチェック用変数で判定
+      - |
+        aws ec2 get-managed-prefix-list-entries --prefix-list-id ${PREFIX_LIST_ID_IPV6} | jq -r '.Entries[].Cidr' | sort > ${OLD_LIST_IPV6_FILE}
+        ERRCHK_IPV6=${PIPESTATUS[0]}
+      # エラー処理
+      - |
+        if [ ${ERRCHK_IPV6} -ne 0 ]; then
+          exit 1
+        fi
+      # CloudflareのIPv4IPアドレスリストを取得
+      - |
+        curl -s --request GET --url https://api.cloudflare.com/client/v4/ips --header 'Content-Type: application/json' | jq -r '.result.ipv4_cidrs[]' | sort > ${NEW_LIST_IPV4_FILE}
+        ERRCHK_IPV4=${PIPESTATUS[1]}
+      # エラー処理
+      - |
+        if [ ${ERRCHK_IPV4} -ne 0 ]; then
+          exit 1
+        fi
+      # CloudflareのIPv6IPアドレスリストを取得
+      - |
+        curl -s --request GET --url https://api.cloudflare.com/client/v4/ips --header 'Content-Type: application/json' | jq -r '.result.ipv6_cidrs[]' | sort > ${NEW_LIST_IPV6_FILE}
+        ERRCHK_IPV6=${PIPESTATUS[1]}
+      # エラー処理
+      - |
+        if [ ${ERRCHK_IPV6} -ne 0 ]; then
+          exit 1
+        fi
+      # 比較用ファイル作成
+      - diff ${OLD_LIST_IPV4_FILE} ${NEW_LIST_IPV4_FILE} | awk '/^</ {print $2}' > ${DELETE_LIST_IPV4_FILE}
+      - diff ${OLD_LIST_IPV4_FILE} ${NEW_LIST_IPV4_FILE} | awk '/^>/ {print $2}' > ${ADD_LIST_IPV4_FILE}
+      - diff ${OLD_LIST_IPV6_FILE} ${NEW_LIST_IPV6_FILE} | awk '/^</ {print $2}' > ${DELETE_LIST_IPV6_FILE}
+      - diff ${OLD_LIST_IPV6_FILE} ${NEW_LIST_IPV6_FILE} | awk '/^>/ {print $2}' > ${ADD_LIST_IPV6_FILE}
+  build:
+    on-failure: ABORT
+    commands:
+      # IPv4マネージドプレフィックスリストの更新判定
+      - |
+        if [ ! -s ${DELETE_LIST_IPV4_FILE} ] && [ ! -s ${ADD_LIST_IPV4_FILE} ]; then
+          # 何も実行しない
+          :
+        else
+          # マネージドプレフィックスリストの現在のバージョン取得と削除＆追加用コマンド作成
+          LIST_VERSION_IPV4=$(aws ec2 describe-managed-prefix-lists --prefix-list-ids ${PREFIX_LIST_ID_IPV4} | jq -r '.PrefixLists[].Version')
+          DELETE_LIST_IPV4_COMMAND="$(awk '{printf "Cidr=%s ", $1}' ${DELETE_LIST_IPV4_FILE})"
+          ADD_LIST_IPV4_COMMAND="$(awk -v timestamp="$(date +'%Y-%m-%d')" '{printf "Cidr=%s,Description=Add_" timestamp "_Cloudflare ", $1}' ${ADD_LIST_IPV4_FILE})"
+          # マネージドプレフィックスリストへの追加＆削除がある場合
+          if [ -s ${DELETE_LIST_IPV4_FILE} ] && [ -s ${ADD_LIST_IPV4_FILE} ]; then
+            aws ec2 modify-managed-prefix-list \
+              --prefix-list-id ${PREFIX_LIST_ID_IPV4} \
+              --remove-entries ${DELETE_LIST_IPV4_COMMAND} \
+              --add-entries ${ADD_LIST_IPV4_COMMAND} \
+              --current-version ${LIST_VERSION_IPV4} 2>&1 > /dev/null
+            ERRCHK_IPV4=$(echo $?)
+          # マネージドプレフィックスリストへの削除がある場合
+          elif [ -s ${DELETE_LIST_IPV4_FILE} ] && [ ! -s ${ADD_LIST_IPV4_FILE} ]; then
+            aws ec2 modify-managed-prefix-list \
+              --prefix-list-id ${PREFIX_LIST_ID_IPV4} \
+              --remove-entries ${DELETE_LIST_IPV4_COMMAND} \
+              --current-version ${LIST_VERSION_IPV4} 2>&1 > /dev/null
+            ERRCHK_IPV4=$(echo $?)
+          # マネージドプレフィックスリストへの追加がある場合
+          else
+            aws ec2 modify-managed-prefix-list \
+              --prefix-list-id ${PREFIX_LIST_ID_IPV4} \
+              --add-entries ${ADD_LIST_IPV4_COMMAND} \
+              --current-version ${LIST_VERSION_IPV4} 2>&1 > /dev/null
+            ERRCHK_IPV4=$(echo $?)
+          fi
+        fi
+      # IPv6マネージドプレフィックスリストの更新判定
+      - |
+        if [ ! -s ${DELETE_LIST_IPV6_FILE} ] && [ ! -s ${ADD_LIST_IPV6_FILE} ]; then
+          # 何も実行しない
+          :
+        else
+          # マネージドプレフィックスリストの現在のバージョン取得と削除＆追加用コマンド作成
+          LIST_VERSION_IPV6=$(aws ec2 describe-managed-prefix-lists --prefix-list-ids ${PREFIX_LIST_ID_IPV6} | jq -r '.PrefixLists[].Version')
+          DELETE_LIST_IPV6_COMMAND="$(awk '{printf "Cidr=%s ", $1}' ${DELETE_LIST_IPV6_FILE})"
+          ADD_LIST_IPV6_COMMAND="$(awk -v timestamp="$(date +'%Y-%m-%d')" '{printf "Cidr=%s,Description=Add_" timestamp "_Cloudflare ", $1}' ${ADD_LIST_IPV6_FILE})"
+          # マネージドプレフィックスリストへの追加＆削除がある場合
+          if [ -s ${DELETE_LIST_IPV6_FILE} ] && [ -s ${ADD_LIST_IPV6_FILE} ]; then
+            aws ec2 modify-managed-prefix-list \
+              --prefix-list-id ${PREFIX_LIST_ID_IPV6} \
+              --remove-entries ${DELETE_LIST_IPV6_COMMAND} \
+              --add-entries ${ADD_LIST_IPV6_COMMAND} \
+              --current-version ${LIST_VERSION_IPV6} 2>&1 > /dev/null
+            ERRCHK_IPV6=$(echo $?)
+          # マネージドプレフィックスリストへの削除がある場合
+          elif [ -s ${DELETE_LIST_IPV6_FILE} ] && [ ! -s ${ADD_LIST_IPV6_FILE} ]; then
+            aws ec2 modify-managed-prefix-list \
+              --prefix-list-id ${PREFIX_LIST_ID_IPV6} \
+              --remove-entries ${DELETE_LIST_IPV6_COMMAND} \
+              --current-version ${LIST_VERSION_IPV6} 2>&1 > /dev/null
+            ERRCHK_IPV6=$(echo $?)
+          # マネージドプレフィックスリストへの追加がある場合
+          else
+            aws ec2 modify-managed-prefix-list \
+              --prefix-list-id ${PREFIX_LIST_ID_IPV6} \
+              --add-entries ${ADD_LIST_IPV6_COMMAND} \
+              --current-version ${LIST_VERSION_IPV6} 2>&1 > /dev/null
+            ERRCHK_IPV6=$(echo $?)
+          fi
+        fi
+      # エラー処理
+      - |
+        if [ ${ERRCHK_IPV4} -ne 0 ] || [ ${ERRCHK_IPV6} -ne 0 ]; then
+          exit 1
+        fi
+  post_build:
+    on-failure: CONTINUE
+    commands:
+      # 作業用ファイル削除
+      - rm -f ${OLD_LIST_IPV4_FILE} ${NEW_LIST_IPV4_FILE} ${DELETE_LIST_IPV4_FILE} ${ADD_LIST_IPV4_FILE}
+      - rm -f ${OLD_LIST_IPV6_FILE} ${NEW_LIST_IPV6_FILE} ${DELETE_LIST_IPV6_FILE} ${ADD_LIST_IPV6_FILE}
